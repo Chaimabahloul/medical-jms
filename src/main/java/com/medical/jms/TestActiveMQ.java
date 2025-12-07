@@ -2,36 +2,67 @@ package com.medical.jms;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 
+import javax.jms.*;
+
 public class TestActiveMQ {
+
     public static void main(String[] args) {
-        System.out.println("=== TEST ACTIVE-MQ ===");
-        System.out.println("Vérification des dépendances...");
+        System.out.println("=== TEST ACTIVE MQ ===");
 
         try {
-            // Test 1: La classe existe-t-elle ?
-            Class<?> clazz = Class.forName("org.apache.activemq.ActiveMQConnectionFactory");
-            System.out.println("✅ Classe ActiveMQConnectionFactory trouvée: " + clazz);
+            // 1. Test de connexion
+            System.out.println("1. Test de connexion...");
+            ConnectionFactory factory = new ActiveMQConnectionFactory("tcp://localhost:61616");
+            Connection connection = factory.createConnection();
+            connection.start();
+            System.out.println("✓ Connexion ActiveMQ OK");
 
-            // Test 2: Création d'instance
-            ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory();
-            System.out.println("✅ Factory créée: " + factory.getClass().getName());
+            // 2. Test session
+            System.out.println("2. Test session...");
+            Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            System.out.println("✓ Session créée");
 
-            // Test 3: Version ActiveMQ
-            Package pkg = ActiveMQConnectionFactory.class.getPackage();
-            System.out.println("✅ Version ActiveMQ: " + pkg.getImplementationVersion());
+            // 3. Test queue
+            System.out.println("3. Test création queue...");
+            Queue queue = session.createQueue("TestQueue");
+            System.out.println("✓ Queue créée: TestQueue");
 
-            System.out.println("\n=== PRÊT POUR LA CONNEXION ===");
-            System.out.println("Toutes les dépendances sont chargées correctement.");
+            // 4. Test producteur
+            System.out.println("4. Test producteur...");
+            MessageProducer producer = session.createProducer(queue);
+            TextMessage message = session.createTextMessage("Message de test ActiveMQ");
+            producer.send(message);
+            System.out.println("✓ Message envoyé");
 
-        } catch (ClassNotFoundException e) {
-            System.err.println("❌ ERREUR: ActiveMQ n'est pas dans le classpath");
-            System.err.println("Solutions:");
-            System.err.println("1. Vérifiez que activemq-all-5.16.6.jar est présent");
-            System.err.println("2. Reconfigurez le classpath dans Project Structure");
-            System.err.println("3. Vérifiez le fichier pom.xml");
+            // 5. Test consommateur
+            System.out.println("5. Test consommateur...");
+            MessageConsumer consumer = session.createConsumer(queue);
+            Message received = consumer.receive(5000);
+
+            if (received instanceof TextMessage) {
+                TextMessage text = (TextMessage) received;
+                System.out.println("✓ Message reçu: " + text.getText());
+            } else {
+                System.out.println("✗ Aucun message reçu");
+            }
+
+            // 6. Nettoyage
+            System.out.println("6. Nettoyage...");
+            producer.close();
+            consumer.close();
+            session.close();
+            connection.close();
+            System.out.println("✓ Ressources fermées");
+
+            System.out.println("\n=== TEST RÉUSSI ===");
 
         } catch (Exception e) {
-            System.err.println("❌ Erreur inattendue: " + e.getMessage());
+            System.err.println("\n=== TEST ÉCHOUÉ ===");
+            System.err.println("Erreur: " + e.getMessage());
+            System.err.println("\nVérifiez que:");
+            System.err.println("1. ActiveMQ est démarré");
+            System.err.println("2. L'URL est correcte: tcp://localhost:61616");
+            System.err.println("3. Les ports ne sont pas bloqués");
             e.printStackTrace();
         }
     }
